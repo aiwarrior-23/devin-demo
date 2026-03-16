@@ -1,8 +1,10 @@
 from .rules import (
     HIGH_VALUE_THRESHOLD,
     HIGH_RISK_COUNTRIES,
+    HIGH_RISK_MERCHANT_CATEGORIES,
     detect_multiple_high_value_transactions,
     detect_repeated_high_risk_country_purchases,
+    detect_repeated_high_value_transactions,
 )
 
 
@@ -29,6 +31,16 @@ def calculate_customer_risk_score(df, customer_id):
     # Points for repeated high-risk country purchases
     if detect_repeated_high_risk_country_purchases(df, customer_id):
         score += 20
+
+    # Points for high-risk merchant categories
+    high_risk_merchant_count = len(
+        customer_txns[customer_txns["merchant_category"].isin(HIGH_RISK_MERCHANT_CATEGORIES)]
+    )
+    score += min(high_risk_merchant_count * 10, 20)
+
+    # Points for repeated high-value transactions
+    if detect_repeated_high_value_transactions(df, customer_id):
+        score += 10
 
     return min(score, 100)
 
