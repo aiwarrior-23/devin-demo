@@ -1,0 +1,7 @@
+transaction_id,customer_id,amount,country,merchant_category,date
+4001,C101,120,USA,Grocery,2026-05-01
+4002,C101,1600,Nigeria,Electronics,2026-05-02
+4003,C101,1700,Nigeria,Electronics,2026-05-03
+4004,C102,50,USA,Coffee,2026-05-01
+4005,C103,2200,Russia,Travel,2026-05-04
+4006,C103,2100,Russia,Travel,2026-05-05
