@@ -53,3 +53,43 @@ def test_analyze_transactions_low_value_not_flagged():
     ]
     flagged = analyze_transactions(transactions)
     assert 1 not in flagged
+
+
+def test_analyze_transactions_rapid_velocity():
+    """3+ transactions from same customer within 1 day should get RAPID_TRANSACTIONS flag."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 3, "customer_id": "C1", "amount": 70, "country": "USA", "date": "2026-05-01"},
+    ]
+    flagged = analyze_transactions(transactions)
+    assert "RAPID_TRANSACTIONS" in flagged[1]
+    assert "RAPID_TRANSACTIONS" in flagged[2]
+    assert "RAPID_TRANSACTIONS" in flagged[3]
+
+
+def test_analyze_transactions_geo_anomaly():
+    """Transactions from multiple countries within 2 days should get GEO_ANOMALY flag."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "UK", "date": "2026-05-01"},
+    ]
+    flagged = analyze_transactions(transactions)
+    assert "GEO_ANOMALY" in flagged[1]
+    assert "GEO_ANOMALY" in flagged[2]
+
+
+def test_analyze_transactions_all_behavioral_flags():
+    """A transaction can accumulate multiple behavioral flags simultaneously."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 2000, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 1800, "country": "UK", "date": "2026-05-01"},
+        {"transaction_id": 3, "customer_id": "C1", "amount": 1600, "country": "Germany", "date": "2026-05-01"},
+    ]
+    flagged = analyze_transactions(transactions)
+    # All should have HIGH_VALUE, MULTIPLE_HIGH_VALUE, RAPID_TRANSACTIONS, GEO_ANOMALY
+    for txn_id in [1, 2, 3]:
+        assert "HIGH_VALUE" in flagged[txn_id]
+        assert "MULTIPLE_HIGH_VALUE" in flagged[txn_id]
+        assert "RAPID_TRANSACTIONS" in flagged[txn_id]
+        assert "GEO_ANOMALY" in flagged[txn_id]

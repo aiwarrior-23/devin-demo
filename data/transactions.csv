@@ -5,3 +5,9 @@ transaction_id,customer_id,amount,country,merchant_category,date
 4004,C102,50,USA,Coffee,2026-05-01
 4005,C103,2200,Russia,Travel,2026-05-04
 4006,C103,2100,Russia,Travel,2026-05-05
+4007,C104,300,USA,Grocery,2026-05-01
+4008,C104,150,UK,Coffee,2026-05-01
+4009,C104,200,Germany,Electronics,2026-05-01
+4010,C105,80,USA,Grocery,2026-05-10
+4011,C105,90,Japan,Coffee,2026-05-10
+4012,C105,100,Brazil,Travel,2026-05-10
