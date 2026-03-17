@@ -1,4 +1,10 @@
-from .rules import is_high_value, is_high_risk_country, detect_multiple_high_value_transactions
+from .rules import (
+    is_high_value,
+    is_high_risk_country,
+    detect_multiple_high_value_transactions,
+    detect_rapid_transactions,
+    detect_geographic_anomalies,
+)
 
 
 def analyze_transaction(txn):
@@ -35,5 +41,15 @@ def analyze_transactions(transactions):
     burst_txn_ids = detect_multiple_high_value_transactions(transactions)
     for txn_id in burst_txn_ids:
         flagged.setdefault(txn_id, []).append("MULTIPLE_HIGH_VALUE")
+
+    # Behavioral rule: rapid transaction velocity
+    rapid_txn_ids = detect_rapid_transactions(transactions)
+    for txn_id in rapid_txn_ids:
+        flagged.setdefault(txn_id, []).append("RAPID_TRANSACTIONS")
+
+    # Behavioral rule: geographic anomaly
+    geo_txn_ids = detect_geographic_anomalies(transactions)
+    for txn_id in geo_txn_ids:
+        flagged.setdefault(txn_id, []).append("GEO_ANOMALY")
 
     return flagged

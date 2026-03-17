@@ -1,4 +1,10 @@
-from src.rules import is_high_value, is_high_risk_country, detect_multiple_high_value_transactions
+from src.rules import (
+    is_high_value,
+    is_high_risk_country,
+    detect_multiple_high_value_transactions,
+    detect_rapid_transactions,
+    detect_geographic_anomalies,
+)
 
 
 def test_high_value():
@@ -139,3 +145,159 @@ def test_mixed_high_and_low_value():
     flagged = detect_multiple_high_value_transactions(transactions)
     # Only txn 1 and 3 are high-value and within 3 days
     assert flagged == {1, 3}
+
+
+# --- Tests for detect_rapid_transactions ---
+
+
+def test_rapid_transactions_flagged():
+    """3+ transactions from same customer within 1 day should be flagged."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 3, "customer_id": "C1", "amount": 70, "country": "USA", "date": "2026-05-01"},
+    ]
+    flagged = detect_rapid_transactions(transactions)
+    assert flagged == {1, 2, 3}
+
+
+def test_rapid_transactions_not_flagged_below_threshold():
+    """2 transactions within 1 day should NOT be flagged (min_count=3)."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "USA", "date": "2026-05-01"},
+    ]
+    flagged = detect_rapid_transactions(transactions)
+    assert flagged == set()
+
+
+def test_rapid_transactions_different_customers():
+    """Transactions from different customers should not be grouped."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C2", "amount": 60, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 3, "customer_id": "C3", "amount": 70, "country": "USA", "date": "2026-05-01"},
+    ]
+    flagged = detect_rapid_transactions(transactions)
+    assert flagged == set()
+
+
+def test_rapid_transactions_outside_window():
+    """Transactions spread over multiple days should not be flagged."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "USA", "date": "2026-05-03"},
+        {"transaction_id": 3, "customer_id": "C1", "amount": 70, "country": "USA", "date": "2026-05-05"},
+    ]
+    flagged = detect_rapid_transactions(transactions)
+    assert flagged == set()
+
+
+def test_rapid_transactions_custom_params():
+    """Custom window_days and min_count should be respected."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "USA", "date": "2026-05-02"},
+        {"transaction_id": 3, "customer_id": "C1", "amount": 70, "country": "USA", "date": "2026-05-03"},
+    ]
+    # With window_days=3, all 3 are within the window
+    flagged = detect_rapid_transactions(transactions, window_days=3, min_count=3)
+    assert flagged == {1, 2, 3}
+
+    # With min_count=4, not enough to trigger
+    flagged = detect_rapid_transactions(transactions, window_days=3, min_count=4)
+    assert flagged == set()
+
+
+def test_rapid_transactions_empty():
+    """Empty transaction list should return empty set."""
+    flagged = detect_rapid_transactions([])
+    assert flagged == set()
+
+
+# --- Tests for detect_geographic_anomalies ---
+
+
+def test_geo_anomaly_multiple_countries():
+    """Transactions from 2+ countries within 2 days should be flagged."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "UK", "date": "2026-05-01"},
+    ]
+    flagged = detect_geographic_anomalies(transactions)
+    assert flagged == {1, 2}
+
+
+def test_geo_anomaly_same_country():
+    """Transactions from the same country should NOT be flagged."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "USA", "date": "2026-05-01"},
+    ]
+    flagged = detect_geographic_anomalies(transactions)
+    assert flagged == set()
+
+
+def test_geo_anomaly_different_customers():
+    """Transactions from different customers in different countries should not trigger."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C2", "amount": 60, "country": "UK", "date": "2026-05-01"},
+    ]
+    flagged = detect_geographic_anomalies(transactions)
+    assert flagged == set()
+
+
+def test_geo_anomaly_outside_window():
+    """Transactions from different countries beyond the window should not be flagged."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "UK", "date": "2026-05-05"},
+    ]
+    flagged = detect_geographic_anomalies(transactions)
+    assert flagged == set()
+
+
+def test_geo_anomaly_three_countries():
+    """Transactions from 3 countries within the window should all be flagged."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "UK", "date": "2026-05-01"},
+        {"transaction_id": 3, "customer_id": "C1", "amount": 70, "country": "Germany", "date": "2026-05-02"},
+    ]
+    flagged = detect_geographic_anomalies(transactions)
+    assert flagged == {1, 2, 3}
+
+
+def test_geo_anomaly_custom_params():
+    """Custom window_days and min_countries should be respected."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "UK", "date": "2026-05-02"},
+        {"transaction_id": 3, "customer_id": "C1", "amount": 70, "country": "Germany", "date": "2026-05-03"},
+    ]
+    # With min_countries=3 and window_days=3, all 3 are within the window
+    flagged = detect_geographic_anomalies(transactions, window_days=3, min_countries=3)
+    assert flagged == {1, 2, 3}
+
+    # With min_countries=4, not enough countries to trigger
+    flagged = detect_geographic_anomalies(transactions, window_days=3, min_countries=4)
+    assert flagged == set()
+
+
+def test_geo_anomaly_empty():
+    """Empty transaction list should return empty set."""
+    flagged = detect_geographic_anomalies([])
+    assert flagged == set()
+
+
+def test_geo_anomaly_multiple_customers_independent():
+    """Two customers each with multi-country txns should both be flagged independently."""
+    transactions = [
+        {"transaction_id": 1, "customer_id": "C1", "amount": 50, "country": "USA", "date": "2026-05-01"},
+        {"transaction_id": 2, "customer_id": "C1", "amount": 60, "country": "UK", "date": "2026-05-01"},
+        {"transaction_id": 3, "customer_id": "C2", "amount": 70, "country": "Japan", "date": "2026-05-01"},
+        {"transaction_id": 4, "customer_id": "C2", "amount": 80, "country": "Brazil", "date": "2026-05-02"},
+    ]
+    flagged = detect_geographic_anomalies(transactions)
+    assert flagged == {1, 2, 3, 4}
