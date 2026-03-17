@@ -1,7 +1,5 @@
 from datetime import datetime, timedelta
 
-import pandas as pd
-
 HIGH_VALUE_THRESHOLD = 1500
 HIGH_RISK_COUNTRIES = ["Nigeria", "Russia"]
 HIGH_RISK_MERCHANT_CATEGORIES = ["Electronics", "Travel", "Crypto", "Gambling"]
