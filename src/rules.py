@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
 
-
 HIGH_VALUE_THRESHOLD = 1500
+HIGH_RISK_COUNTRIES = ["Nigeria", "Russia"]
+HIGH_RISK_MERCHANT_CATEGORIES = ["Electronics", "Travel", "Crypto", "Gambling"]
 HIGH_VALUE_WINDOW_DAYS = 3
 HIGH_VALUE_MIN_COUNT = 2
+REPEATED_HIGH_VALUE_MIN_COUNT = 3
 
 
 def is_high_value(amount):
@@ -11,7 +13,12 @@ def is_high_value(amount):
 
 
 def is_high_risk_country(country):
-    return country in ["Nigeria", "Russia"]
+    return country in HIGH_RISK_COUNTRIES
+
+
+def is_high_risk_merchant(merchant_category):
+    """Check if a merchant category is considered high risk."""
+    return merchant_category in HIGH_RISK_MERCHANT_CATEGORIES
 
 
 def detect_multiple_high_value_transactions(transactions, window_days=HIGH_VALUE_WINDOW_DAYS, min_count=HIGH_VALUE_MIN_COUNT):
@@ -61,3 +68,21 @@ def detect_multiple_high_value_transactions(transactions, window_days=HIGH_VALUE
                     flagged_txn_ids.add(t["transaction_id"])
 
     return flagged_txn_ids
+
+
+def detect_repeated_high_risk_country_purchases(transactions, customer_id):
+    """Detect if a customer has repeated purchases from high-risk countries."""
+    high_risk_count = sum(
+        1 for txn in transactions
+        if txn["customer_id"] == customer_id and is_high_risk_country(txn["country"])
+    )
+    return high_risk_count >= 2
+
+
+def detect_repeated_high_value_transactions(transactions, customer_id, min_count=REPEATED_HIGH_VALUE_MIN_COUNT):
+    """Detect if a customer has a pattern of repeated high-value transactions overall."""
+    high_value_count = sum(
+        1 for txn in transactions
+        if txn["customer_id"] == customer_id and is_high_value(txn["amount"])
+    )
+    return high_value_count >= min_count
